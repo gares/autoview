@@ -1,0 +1,52 @@
+p {
+  font-size: 14pt;
+}
+.doclist {
+  font-size: 14pt;
+}
+
+.vfill {
+  height: 100vh;
+}
+
+.file::before {
+  content: "≣"; 
+}
+
+#tools {
+  position: absolute;
+  left: -30px;
+  top: 45px;
+  width: 1.5em;
+}
+
+#prev {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 10px 10px 10px;
+  border-color: transparent transparent rgba(117,117,117,0.5) transparent;
+  margin-bottom: 3px;
+}
+#next {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 10px 10px 0 10px;
+  border-color: rgba(117,117,117,0.5) transparent transparent transparent;
+  margin-bottom: 3px;
+  z-index: 100;
+}
+.slideno {
+  border-style: solid;
+  border-radius: 15px;
+  border-color: rgba(117,117,117,0.5);
+  background-color: rgba(117,117,117,0.5);
+  text-align: center;
+  margin-bottom: 3px;
+  cursor: default;
+}
+.selected {
+  border-style: solid;
+  background-color: white;
+}
