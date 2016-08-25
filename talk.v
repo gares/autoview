@@ -1,5 +1,38 @@
 From mathcomp Require Import all_ssreflect.
 
+(** #<div class="slide vfill"># *)
+(** 
+
+#<center>#
+** Boolean reflection via type classes
+#</center>#
+
+#<center>#
+Benjamin Gregoire
+Enrico Tassi
+#</center>#
+
+#<center>#
+Coq Workshop 2016
+#</center>#
+
+*)
+(** #</div># *)
+
+(** ------------------------------------- *)
+
+(** #<div class="slide vfill"># *)
+(** ** Boolean reflection
+
+ - Bool whenever possible
+ - Prop still needed
+ - solution: view mechanism
+
+*)
+(** #</div># *)
+
+(** ------------------------------------- *)
+(** #<div class="slide"># *)
 Module Problem.
 
 Lemma tedius b1 b2 b3 b4 :
@@ -20,6 +53,20 @@ Qed.
 
 End Problem.
 
+(** #</div># *)
+(** ------------------------------------- *)
+
+(** #<div class="slide vfill"># *)
+(** ** Idea
+
+  - Many times the choice of right view is obvious
+    (for the library designer)
+  - [xP] a single view to rule them all
+
+*)
+(** #</div># *)
+(** ------------------------------------- *)
+(** #<div class="slide"># *)
 
 Module FirstAttempt.
 
@@ -45,7 +92,21 @@ Admitted.
 
 End FirstAttempt.
 
-(* merit *)
+(** #</div># *)
+(** ------------------------------------- *)
+
+(** #<div class="slide vfill"># *)
+(** ** Merit
+
+ - No change to the tactic language
+ - Best view choice wired in
+ - Extensible by the user
+ - Recursive (not yet)
+
+*)
+(** #</div># *)
+(** ------------------------------------- *)
+(** #<div class="slide"># *)
 
 Module Recursion.
 
@@ -55,7 +116,10 @@ Class RView (p : Prop) (b : bool) :=
 Lemma rxP b p {v : RView p b} : reflect p b.
 Proof. by apply r. Qed.
   
-Instance andV p1 p2 q1 q2 :
+Instance idRV (b : bool) : RView b b | 99.
+Proof. by split; apply: idP. Qed.
+
+Instance andRV p1 p2 q1 q2 :
    RView q1 p1 -> RView q2 p2 ->
    RView (q1 /\ q2) (p1 && p2) | 90.
 Proof.
@@ -63,16 +127,13 @@ move=> [v1] [v2]; split.
 by apply: (iffP andP) => -[] /v1 ? /v2 ?; split.
 Qed.
 
-Instance orV p1 p2 q1 q2 :
+Instance orRV p1 p2 q1 q2 :
    RView q1 p1 -> RView q2 p2 ->
    RView (q1 \/ q2) (p1 || p2) | 90.
 Proof.
 move=> [v1] [v2]; split.
 apply: (iffP orP) => -[ /v1 | /v2 ] ?; by [left|right].
 Qed.
-
-Instance idV (b : bool) : RView b b | 99.
-Proof. by split; apply: idP. Qed.
 
 Lemma tedius2 b1 b2 b3 :
   b1 && b2 || b3 -> b3 || b1.
@@ -82,6 +143,20 @@ Admitted.
 
 End Recursion.
 
+(** #</div># *)
+
+(** ------------------------------------- *)
+(** #<div class="slide vfill"># 
+** Rock solid?
+
+ - no ;-)
+ - Views are just terms, one can pass them
+   arguments as in [/(v _ x)]
+
+#</div># *)
+
+(** ------------------------------------- *)
+(** #<div class="slide"># *)
 Module UsabilityIssues.
 Import Recursion.
 
@@ -95,14 +170,23 @@ Check (rxP _ _).
 
 End UsabilityIssues.
 
+(** #</div># *)
+(** ------------------------------------- *)
+(** #<div class="slide vfill"># 
+** Cleaning up
+
+ - View and RView
+ - andV and andRV
+
+#</div># *)
+(** ------------------------------------- *)
+(** #<div class="slide"># *)
 
 Module OneView.
 
-(* not an inductive *)
-
 Definition vlevel := unit.
 
-Definition vRec : vlevel. Proof. by []. Qed.
+Definition vRec  : vlevel. Proof. by []. Qed.
 Definition vBase : vlevel. Proof. by []. Qed. 
 Definition vStop : vlevel. Proof. by []. Qed. 
 
@@ -119,6 +203,9 @@ Class Valid (current : vlevel) (next : vlevel).
 Instance r1 : Valid vBase vStop.
 Instance r2 : Valid vRec vRec    | 90.
 Instance r3 : Valid vRec vStop   | 99.
+
+Instance idV (b : bool) : View vStop b b | 99.
+Proof. by split; apply: idP. Qed.
 
 Instance andV l1a l1b l2 p1 p2 q1 q2
    {r1 : Valid l2 l1a} {r2 : Valid l2 l1b} :
@@ -138,9 +225,6 @@ move=> [v1] [v2]; split.
 apply: (iffP orP) => -[ /v1 | /v2 ] ?; by [left|right].
 Qed.
 
-Instance idV (b : bool) : View vStop b b | 99.
-Proof. by split; apply: idP. Qed.
-
 Hint Mode View + + - : typeclass_instances.
 Hint Mode View + - + : typeclass_instances.
 
@@ -152,9 +236,10 @@ Admitted.
 
 End OneView.
 
+(** #</div># *)
+(** ------------------------------------- *)
+(** #<div class="slide"># *)
 Module TheGameIsOn.
-
-(* View level                                                           *)
 
 Definition vlevel := unit.
 
@@ -319,9 +404,9 @@ Proof. by split; apply: (iffP allP)=> X ? /X /xPm. Qed.
 
 Instance hasV vl avl `{Valid rAL vl} (T:eqType) (P:T->Prop) (p:pred T) l
   `{ArgBind vl avl} (V:forall x, View avl (P x) (p x)) : 
-  View vl (exists x, x \in l /\ P x) (has p l). 
+  View vl (exists2 x, x \in l & P x) (has p l). 
 Proof.
-  by (split; apply: (iffP hasP)) => [[x Hin /xPm ?]|[x [Hin /xPm ?]]]; exists x.
+  by (split; apply: (iffP hasP)) => [[x Hin /xPm ?]|[x Hin /xPm ?]]; exists x.
 Qed.
 
 
@@ -342,21 +427,7 @@ Abort.
 Lemma test2 (b1 b2:bool) : b1 && b2 && (b1 == b2).
 Proof. 
 apply /rcxP.
-Abort.
-
-Lemma test3 (b1 b2 b3: bool) : [&& b1, b2 & b3].
-Proof.
-apply /rbxP.
-Abort.
-
-Lemma test4 (b1 b2 b3: bool) : [&& b1, b2, b3 & b3].
-Proof.
-apply /lxP.
-Abort.
-
-Lemma test5 (b1 b2 b3: bool) : [&& b1, b2, b3 & b3].
-Proof.
-apply /xP.
+(* apply /lxP. *)
 Abort.
 
 (*
@@ -372,85 +443,115 @@ Abort.
 End TheGameIsOn.
 
 
+(** #</div># *)
 
+(** ------------------------------------- *)
+(** #<div class="slide vfill">#
+** Wrapping up
 
-(*
+ - Intergation is easy because view are terms
+ - Type Classes enable user extensibility
+ - Hardening is not obvious to me 
 
-With Canonical Structures it is harder.
+#</div># *)
+(** -------------------------------------------- *)
 
-Record c1P (b:bool) := mk_c1P { c1b : bool; c1p : Prop; _ : reflect c1p c1b }.
-Record c2P (b:bool) := mk_c2P { c2b : bool; c2p : Prop; _ : reflect c2p c2b }.
-Record c3P (b:bool) := mk_c3P { c3b : bool; c3p : Prop; _ : reflect c3p c3b }.
-Record c4P (b:bool) := mk_c4P { c4b : bool; c4p : Prop; _ : reflect c4p c4b }.
+(** #<div class='slide vfill'># 
+** Spam
 
-Record wrapped T := Wrap { unwrap : T }.
+#<a href="http://math-comp.github.io/mcb">Mathematical Components (the book)</a>#
 
-Definition wrap4 T e := @Wrap T e.
-Definition wrap3 T e := @wrap4 T e.
-Definition wrap2 T e := @wrap3 T e.
-Definition wrap1 T e := @wrap2 T e.
-Canonical wrap1.
+#<img src="http://math-comp.github.io/mcb/cover-front-web.png"/>#
 
+#<a href="http://math-comp.github.io/mcb">http://math-comp.github.io/mcb</a>#
 
-Record canonicalP (b:bool) := mk_cP{
-  cano_bool : wrapped bool; 
-  cano_prop : wrapped Prop; 
-  _ : reflect (unwrap cano_prop) (unwrap cano_bool);
-}.
+#</div>#
+-------------------------------------------- *)
 
-Program Canonical cc1P b (c:c1P b) := @mk_cP b (wrap1 c.(c1b)) (wrap1 c.(c1p)) _.
-Next Obligation. by case c. Qed.
-
-Program Canonical cc2P b (c:c2P b) := @mk_cP b (wrap2 c.(c2b)) (wrap2 c.(c2p)) _.
-Next Obligation. by case c. Qed.
-
-Program Canonical cc3P b (c:c3P b) := @mk_cP b (wrap3 c.(c3b)) (wrap3 c.(c3p)) _.
-Next Obligation. by case c. Qed.
-
-Program Canonical cc4P b (c:c4P b) := @mk_cP b (wrap4 c.(c4b)) (wrap4 c.(c4p)) _.
-Next Obligation. by case c. Qed.
-
-
-Lemma xPb b (c:canonicalP b) : reflect (unwrap (cano_prop c)) (unwrap (cano_bool c)).
-Proof. by case c. Qed. 
-
-Definition rxP := @xPb true.
-Definition lxP := @xPb false.
-
-Canonical cP_id mode (b:bool) := @mk_cP mode (Wrap b) (Wrap (is_true b)) (@idP b).
-
-Notation ucb x := (unwrap (cano_bool x)).
-Notation ucp x := (unwrap (cano_prop x)).
-
-Lemma cP_and mode (b1 b2:canonicalP mode) : c4P mode. 
-Proof.
-  refine (@mk_c4P mode (ucb b1 && ucb b2) (ucp b1 /\ ucp b2) _).
-  by apply:(iffP andP) => -[] /xPb ? /xPb.
-Defined.
-Canonical cP_and.
-
-(*Lemma cP_and3 (b1 b2 b3:canonicalP) : c3P. 
-Proof.
-  refine (@mk_c3P ([&& ucb b1 , ucb b2 & ucb b3]) ([/\ ucp b1 , ucp b2 & ucp b3]) _).
-  by apply:(iffP and3P) => -[] /xP ? /xP ? /xP.
-Defined.
-Canonical cP_and3.
-*)
-Lemma cP_imp mode (b1 b2:canonicalP mode) : c4P mode. 
-Proof.
-  refine (@mk_c4P mode (ucb b1 ==> ucb b2) (ucp b1 -> ucp b2) _).
-  by apply:(iffP implyP)=> H /xPb /H ?;apply /xPb.
-Defined.
-Canonical cP_imp.
-
-(*Lemma cP_and4 (b1 b2 b3 b4:canonicalP) : c2P. 
-Proof.
-  refine (@mk_c2P ([&& ucb b1 , ucb b2 & ucb b3]) ([/\ ucp b1 , ucp b2 & ucp b3]) _).
-  by apply:(iffP and4P) => -[] /xP ? /xP ? /xP .
-Defined.
-Canonical cP_and3. *)
-
-
-Program Canonical cP_has (T:eqType) (P:pred T) l := @mk_c1P true _ _ (@hasP T P l).
-
-*)
+(**
+#
+<script>
+alignWithTop = true;
+current = 0;
+slides = [];
+function select_current() {
+  for (var i = 0; i < slides.length; i++) {
+    var s = document.getElementById('slideno' + i);
+    if (i == current) {
+      s.setAttribute('class','slideno selected');
+    } else {
+      s.setAttribute('class','slideno');
+    }
+  }	
+}
+function init_slides() {
+  var toolbar = document.getElementById('panel-wrapper');
+  if (toolbar) {
+  var tools = document.createElement("div");
+  var tprev = document.createElement("div");
+  var tnext = document.createElement("div");
+  tools.setAttribute('id','tools');
+  tprev.setAttribute('id','prev');
+  tprev.setAttribute('onclick','prev_slide();');
+  tnext.setAttribute('id','next');
+  tnext.setAttribute('onclick','next_slide();');
+  toolbar.appendChild(tools);
+  tools.appendChild(tprev);
+  tools.appendChild(tnext);
+  
+  slides = document.getElementsByClassName('slide');
+  for (var i = 0; i < slides.length; i++) {
+    var s = document.createElement("div");
+    s.setAttribute('id','slideno' + i);
+    s.setAttribute('class','slideno');
+    s.setAttribute('onclick','goto_slide('+ i +');');
+    s.innerHTML = i;
+    tools.appendChild(s);
+  }
+  select_current();
+  } else {
+  //retry later
+  setTimeout(init_slides,100);	  
+  }
+}
+function on_screen(rect) {
+  return (
+    rect.top >= 0 &&
+    rect.top <= (window.innerHeight || document.documentElement.clientHeight)
+  );
+}
+function update_scrolled(){
+  for (var i = 0; i < slides.length; i++) {
+    var rect = slides[i].getBoundingClientRect();
+      if (on_screen(rect)) {
+        current = i;
+        select_current();	
+    }
+  }
+}
+function goto_slide(n) {
+  current = n;
+  var element = slides[current];
+  console.log(element);
+  element.scrollIntoView(alignWithTop);
+  select_current();
+}
+function next_slide() {
+  current++;
+  if (current >= slides.length) { current = slides.length - 1; }
+  var element = slides[current];
+  console.log(element);
+  element.scrollIntoView(alignWithTop);
+  select_current();
+}
+function prev_slide() {
+  current--;
+  if (current < 0) { current = 0; }
+  var element = slides[current];
+  element.scrollIntoView(alignWithTop);
+  select_current();
+}
+window.onload = init_slides;
+window.onscroll = update_scrolled;
+</script>
+# *)
